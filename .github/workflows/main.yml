@@ -1,0 +1,28 @@
+name: Frontend CI.CD
+on:
+  push:
+    branches:
+      - master
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout Repository
+      uses: actions/checkout@v2
+      
+    - name: print key into file
+      run: echo "${{ secrets.EC2_KEY }}" > ec2_key.pem
+
+    - name: Set Permissions for key
+      run: chmod 400 ec2_key.pem
+
+
+    - name: SSH into EC2 and Run Docker
+      run: |
+        ssh -o StrictHostKeyChecking=no -i ec2_key.pem ${{ secrets.EC2_USERNAME }}@${{ secrets.EC2_HOST_IP }} '
+          if sudo docker ps -a --format "{{.Names}}" | grep -q "uptime-kuma"; then
+             sudo docker stop uptime-kuma &&
+             sudo docker rm uptime-kuma
+          fi
+          sudo docker run -d --restart=always -p 3001:3001 -v uptime-kuma:/app/data --name uptime-kuma louislam/uptime-kuma:1'
